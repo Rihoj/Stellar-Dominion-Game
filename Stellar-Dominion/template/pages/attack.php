@@ -96,6 +96,30 @@ if (!empty($me['alliance_role_id'])) {
 // Pass 0 so the WHERE u.id <> ? does not exclude anyone.
 $targets = ss_get_targets($link, 0, $items_per_page, $offset);
 // NOTE: ss_get_targets already computes army_size
+<<<<<<< HEAD
+=======
+
+// Prefetch pending alliance invitations/applications for targets to control Invite UI
+$pendingInvites = $pendingApps = [];
+$targetIds = array_map('intval', array_column($targets, 'id'));
+if (!empty($targetIds)) {
+    $inList = implode(',', $targetIds);
+    // Pending invitations (any alliance)
+    $sqlInv = "SELECT invitee_id FROM alliance_invitations WHERE status = 'pending' AND invitee_id IN ($inList)";
+    if ($resInv = mysqli_query($link, $sqlInv)) {
+        while ($r = mysqli_fetch_assoc($resInv)) { $pendingInvites[(int)$r['invitee_id']] = true; }
+        mysqli_free_result($resInv);
+    }
+    // Pending applications (any alliance)
+    $sqlApp = "SELECT user_id FROM alliance_applications WHERE status = 'pending' AND user_id IN ($inList)";
+    if ($resApp = mysqli_query($link, $sqlApp)) {
+        while ($r = mysqli_fetch_assoc($resApp)) { $pendingApps[(int)$r['user_id']] = true; }
+        mysqli_free_result($resApp);
+    }
+}
+
+foreach ($targets as &$row) {
+>>>>>>> 078e683 (removed 1 death always on army, added alliance invitations)
 
 // Prefetch pending alliance invitations/applications for targets to control Invite UI
 $pendingInvites = $pendingApps = [];
@@ -314,6 +338,7 @@ include_once __DIR__ . '/../includes/header.php';
                     $rank = $offset + 1;
                     foreach ($targets as $t):
                         $avatar = $t['avatar_path'] ?: '/assets/img/default_avatar.webp';
+<<<<<<< HEAD
                         // Clickable alliance tag → /alliance.php?id={alliance_id}
                         if (!empty($t['alliance_id']) && !empty($t['alliance_tag'])) {
                             $tag = '<a href="/view_alliance.php?id='.(int)$t['alliance_id'].'" class="text-cyan-400 hover:underline">'
@@ -327,6 +352,12 @@ include_once __DIR__ . '/../includes/header.php';
 
                         // Determine if the target is an ally or the player themselves.
                         $is_self = ((int)$t['id'] === (int)$user_id);
+=======
+                        $tag = !empty($t['alliance_tag']) ? '<span class="alliance-tag">[' . htmlspecialchars($t['alliance_tag']) . ']</span> ' : '';
+                        
+                        // Determine if the target is an ally or the player themselves.
+                        $is_self = ($t['id'] === $user_id);
+>>>>>>> 078e683 (removed 1 death always on army, added alliance invitations)
                         $is_ally = ($my_alliance_id && $my_alliance_id === $t['alliance_id'] && !$is_self);
                         $cant_attack = $is_self || $is_ally;
 
@@ -460,7 +491,11 @@ include_once __DIR__ . '/../includes/header.php';
                 }
 
                 // Determine if the target is an ally or the player themselves for mobile view.
+<<<<<<< HEAD
                 $is_self = ((int)$t['id'] === (int)$user_id);
+=======
+                $is_self = ($t['id'] === $user_id);
+>>>>>>> 078e683 (removed 1 death always on army, added alliance invitations)
                 $is_ally = ($my_alliance_id && $my_alliance_id === $t['alliance_id'] && !$is_self);
                 $cant_attack = $is_self || $is_ally;
 
