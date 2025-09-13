@@ -121,8 +121,13 @@ if ($action === 'login') {
                         // --- End IP Logger Update ---
 
                         $_SESSION["loggedin"] = true;
+                        // Set both legacy 'id' and new 'user_id' for compatibility across Lambdas
                         $_SESSION["id"] = $id;
+                        $_SESSION["user_id"] = $id;
                         $_SESSION["character_name"] = $character_name;
+                        
+                        // Force session write to ensure it's saved to DynamoDB
+                        session_write_close();
                         
                         header("location: /dashboard.php");
                         exit;
