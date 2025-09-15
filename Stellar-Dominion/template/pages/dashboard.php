@@ -332,10 +332,10 @@ include_once __DIR__ . '/../includes/header.php';
                             <button type="button" class="text-sm px-2 py-1 rounded bg-gray-800 hover:bg-gray-700" @click="panels.sec = !panels.sec" x-text="panels.sec ? 'Hide' : 'Show'"></button>
                         </div>
                         <div x-show="panels.sec" x-transition x-cloak>
-                            <div class="flex justify-between text-sm"><span>Current IP Address:</span> <span class="text-white font-semibold"><?php echo htmlspecialchars($_SERVER['REMOTE_ADDR']); ?></span></div>
+                            <div class="flex justify-between text-sm"><span>Current IP Address:</span> <span class="text-white font-semibold"><?php echo htmlspecialchars(\StellarDominion\Services\IpAddress::getClientIp() ?? ($_SERVER['REMOTE_ADDR'] ?? 'unknown')); ?></span></div>
                             <?php if (!empty($user_stats['previous_login_at'])): ?>
                                 <div class="flex justify-between text-sm"><span>Previous Login:</span> <span class="text-white font-semibold"><?php echo date("F j, Y, g:i a", strtotime($user_stats['previous_login_at'])); ?> UTC</span></div>
-                                <div class="flex justify-between text-sm"><span>Previous IP Address:</span> <span class="text-white font-semibold"><?php echo htmlspecialchars($user_stats['previous_login_ip']); ?></span></div>
+                                <div class="flex justify-between text-sm"><span>Previous IP Address:</span> <span class="text-white font-semibold"><?php echo htmlspecialchars($user_stats['previous_login_ip'] ? $user_stats['previous_login_ip'] : 'unknown'); ?></span></div>
                             <?php else: ?>
                                 <p class="text-sm text-gray-400">Previous login information is not yet available.</p>
                             <?php endif; ?>
