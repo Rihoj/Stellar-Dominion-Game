@@ -99,7 +99,7 @@ if ($result) {
                         credits = credits + ?,
                         deposits_today = GREATEST(0, deposits_today - ?),
                         last_updated = ?,
-                        last_deposit_timestamp = IF(? > 0, NOW(), last_deposit_timestamp)
+                        last_deposit_timestamp = IF(? > 0, ?, last_deposit_timestamp)
                    WHERE id = ?";
     $stmt_update = mysqli_prepare($link, $sql_update);
     if (!$stmt_update) {
@@ -118,17 +118,19 @@ if ($result) {
     $bind_deposits     = 0;     // deposits_granted
     $bind_now_str      = '';
     $bind_deposits_ok  = 0;     // same as deposits_granted for IF()
+    $bind_deposit_ts   = gmdate('Y-m-d H:i:s');
     $bind_user_id      = 0;
 
     mysqli_stmt_bind_param(
         $stmt_update,
-        "iiiisii",
+        "iiiisisi",
         $bind_attack_turns,
         $bind_citizens,
         $bind_credits,
         $bind_deposits,
         $bind_now_str,
         $bind_deposits_ok,
+        $bind_deposit_ts,
         $bind_user_id
     );
 
@@ -140,9 +142,11 @@ if ($result) {
         $deposits_granted = 0;
         $deposits_today   = (int)$user['deposits_today'];
 
+        $last_deposit_ts_value = null;
         if ($deposits_today > 0 && !empty($user['last_deposit_timestamp'])) {
             $last_dep_ts = strtotime($user['last_deposit_timestamp'] . ' UTC');
             if ($last_dep_ts !== false) {
+                $last_deposit_ts_value = $last_dep_ts;
                 $seconds_since_last_deposit = $current_ts - $last_dep_ts;
                 if ($seconds_since_last_deposit >= 21600) { // 6 hours
                     $deposits_to_grant = intdiv($seconds_since_last_deposit, 21600);
@@ -238,6 +242,16 @@ if ($result) {
 
         $bind_now_str      = gmdate('Y-m-d H:i:s', $next_last_updated_ts);
         $bind_deposits_ok  = (int)$deposits_granted;
+        if ($deposits_granted > 0) {
+            if ($last_deposit_ts_value !== null) {
+                $next_last_deposit_ts = $last_deposit_ts_value + ($deposits_granted * 21600);
+            } else {
+                $next_last_deposit_ts = $current_ts;
+            }
+            $bind_deposit_ts = gmdate('Y-m-d H:i:s', $next_last_deposit_ts);
+        } else {
+            $bind_deposit_ts = $user['last_deposit_timestamp'] ?? gmdate('Y-m-d H:i:s', $current_ts);
+        }
         $bind_user_id      = $uid;
 
         if (mysqli_stmt_execute($stmt_update)) {
