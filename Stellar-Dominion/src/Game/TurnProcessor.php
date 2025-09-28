@@ -132,10 +132,9 @@ if ($result) {
         $bind_user_id
     );
 
-    $now_ts = time(); // single snapshot for this cron pass
-
     while ($user = mysqli_fetch_assoc($result)) {
         $uid = (int)$user['id'];
+        $current_ts = time();
 
         // -------- Deposit regeneration (fast integer math) --------
         $deposits_granted = 0;
@@ -144,9 +143,9 @@ if ($result) {
         if ($deposits_today > 0 && !empty($user['last_deposit_timestamp'])) {
             $last_dep_ts = strtotime($user['last_deposit_timestamp'] . ' UTC');
             if ($last_dep_ts !== false) {
-                $hours_since_last_deposit = ($now_ts - $last_dep_ts) / 3600;
-                if ($hours_since_last_deposit >= 6) {
-                    $deposits_to_grant = (int)floor($hours_since_last_deposit / 6);
+                $seconds_since_last_deposit = $current_ts - $last_dep_ts;
+                if ($seconds_since_last_deposit >= 21600) { // 6 hours
+                    $deposits_to_grant = intdiv($seconds_since_last_deposit, 21600);
                     $deposits_granted  = min($deposits_today, $deposits_to_grant);
                 }
             } else {
@@ -160,8 +159,10 @@ if ($result) {
         if ($last_upd_ts === false) {
             write_log("WARN: bad last_updated for user {$uid}, value='{$user['last_updated']}'");
         } else {
-            $minutes_since_last_update = ($now_ts - $last_upd_ts) / 60;
-            $turns_to_process = (int)floor($minutes_since_last_update / $turn_interval_minutes);
+            $elapsed_seconds = $current_ts - $last_upd_ts;
+            if ($elapsed_seconds >= $turn_interval_minutes * 60) {
+                $turns_to_process = intdiv($elapsed_seconds, $turn_interval_minutes * 60);
+            }
         }
 
         if ($turns_to_process <= 0 && $deposits_granted <= 0) {
@@ -226,7 +227,16 @@ if ($result) {
         $bind_citizens     = (int)$gained_citizens;
         $bind_credits      = (int)$gained_credits;
         $bind_deposits     = (int)$deposits_granted;
-        $bind_now_str      = gmdate('Y-m-d H:i:s'); // same semantics as original
+        if ($last_upd_ts === false) {
+            $next_last_updated_ts = $current_ts;
+        } else {
+            $next_last_updated_ts = $last_upd_ts + ($turns_to_process * $turn_interval_minutes * 60);
+            if ($turns_to_process === 0) {
+                $next_last_updated_ts = $last_upd_ts; // preserve remainder when only deposits update
+            }
+        }
+
+        $bind_now_str      = gmdate('Y-m-d H:i:s', $next_last_updated_ts);
         $bind_deposits_ok  = (int)$deposits_granted;
         $bind_user_id      = $uid;
 
