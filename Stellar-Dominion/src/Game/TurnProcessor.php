@@ -159,17 +159,27 @@ if ($result) {
 
         // -------- Offline turn processing --------
         $turns_to_process = 0;
-        $last_upd_ts = strtotime($user['last_updated'] . ' UTC');
-        if ($last_upd_ts === false) {
-            write_log("WARN: bad last_updated for user {$uid}, value='{$user['last_updated']}'");
+        $seed_last_updated = false;
+        $last_upd_ts = null;
+
+        if (empty($user['last_updated'])) {
+            $seed_last_updated = true;
+            $last_upd_ts = $current_ts;
         } else {
-            $elapsed_seconds = $current_ts - $last_upd_ts;
-            if ($elapsed_seconds >= $turn_interval_minutes * 60) {
-                $turns_to_process = intdiv($elapsed_seconds, $turn_interval_minutes * 60);
+            $last_upd_ts = strtotime($user['last_updated'] . ' UTC');
+            if ($last_upd_ts === false) {
+                write_log("WARN: bad last_updated for user {$uid}, value='{$user['last_updated']}'");
+                $seed_last_updated = true;
+                $last_upd_ts = $current_ts;
+            } else {
+                $elapsed_seconds = $current_ts - $last_upd_ts;
+                if ($elapsed_seconds >= $turn_interval_minutes * 60) {
+                    $turns_to_process = intdiv($elapsed_seconds, $turn_interval_minutes * 60);
+                }
             }
         }
 
-        if ($turns_to_process <= 0 && $deposits_granted <= 0) {
+        if ($turns_to_process <= 0 && $deposits_granted <= 0 && !$seed_last_updated) {
             continue; // nothing to do for this user
         }
 
@@ -231,13 +241,12 @@ if ($result) {
         $bind_citizens     = (int)$gained_citizens;
         $bind_credits      = (int)$gained_credits;
         $bind_deposits     = (int)$deposits_granted;
-        if ($last_upd_ts === false) {
+        if ($turns_to_process > 0) {
+            $next_last_updated_ts = $last_upd_ts + ($turns_to_process * $turn_interval_minutes * 60);
+        } elseif ($seed_last_updated) {
             $next_last_updated_ts = $current_ts;
         } else {
-            $next_last_updated_ts = $last_upd_ts + ($turns_to_process * $turn_interval_minutes * 60);
-            if ($turns_to_process === 0) {
-                $next_last_updated_ts = $last_upd_ts; // preserve remainder when only deposits update
-            }
+            $next_last_updated_ts = $last_upd_ts; // preserve remainder when only deposits update
         }
 
         $bind_now_str      = gmdate('Y-m-d H:i:s', $next_last_updated_ts);
